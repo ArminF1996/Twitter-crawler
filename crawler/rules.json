@@ -1,0 +1,16 @@
+{
+  "add": [
+    { "value": "-(has:links) -(has:videos) -(is:quote) -(is:retweet) -(is:verified) (lang:en) (#trump OR trump OR #donaldtrump OR \"donald trump\" OR #donaldtrump2020) (#ushealthcare OR #uscoronavirus OR #uscovid19 OR coronavirus OR \"health care\")", "tag": "corona" },
+    { "value": "-(has:links) -(has:videos) -(is:quote) -(is:retweet) (lang:en) (is:verified) (#trump OR trump OR #donaldtrump OR \"donald trump\" OR #donaldtrump2020) (#ushealthcare OR #uscoronavirus OR #uscovid19 OR coronavirus OR \"health care\")", "tag": "corona-vip" },
+    { "value": "-(has:links) -(has:videos) -(is:quote) -(is:retweet) -(is:verified) (lang:en) (#trump OR trump OR #donaldtrump OR \"donald trump\" OR #donaldtrump2020) (#usgdp OR #useconomy OR #usindustry OR economy OR gdp)", "tag": "economy" },
+    { "value": "-(has:links) -(has:videos) -(is:quote) -(is:retweet) (lang:en) (is:verified) (#trump OR trump OR #donaldtrump OR \"donald trump\" OR #donaldtrump2020) (#usgdp OR #useconomy OR #usindustry OR economy OR gdp)", "tag": "economy-vip" },
+    { "value": "-(has:links) -(has:videos) -(is:quote) -(is:retweet) -(is:verified) (lang:en) (#trump OR trump OR #donaldtrump OR \"donald trump\" OR #donaldtrump2020) (#usjob OR #usjobgrowth OR #usunemployment OR #usincome OR unemployment OR \"job growth\")", "tag": "job" },
+    { "value": "-(has:links) -(has:videos) -(is:quote) -(is:retweet) (lang:en) (is:verified) (#trump OR trump OR #donaldtrump OR \"donald trump\" OR #donaldtrump2020) (#usjob OR #usjobgrowth OR #usunemployment OR #usincome OR unemployment OR \"job growth\")", "tag": "job-vip" },
+    { "value": "-(has:links) -(has:videos) -(is:quote) -(is:retweet) -(is:verified) (lang:en) (#trump OR trump OR #donaldtrump OR \"donald trump\" OR #donaldtrump2020 OR #tradewar) (#uschina OR #tradewar OR #madeinchina OR china OR tradewar) (sample:50)", "tag": "china" },
+    { "value": "-(has:links) -(has:videos) -(is:quote) -(is:retweet) (lang:en) (is:verified) (#trump OR trump OR #donaldtrump OR \"donald trump\" OR #donaldtrump2020 OR #tradewar) (#uschina OR #tradewar OR #madeinchina OR china)", "tag": "china-vip" },
+    { "value": "-(has:links) -(has:videos) -(is:quote) -(is:retweet) -(is:verified) (lang:en) (#trump OR trump OR #donaldtrump OR \"donald trump\" OR #donaldtrump2020) (#uselection OR #2020election OR election) (sample:40)", "tag": "election" },
+    { "value": "-(has:links) -(has:videos) -(is:quote) -(is:retweet) (lang:en) (is:verified) (#trump OR trump OR #donaldtrump OR \"donald trump\" OR #donaldtrump2020) (#uselection OR #uselections OR #2020election OR election)", "tag": "election-vip" },
+    { "value": "-(has:links) -(has:videos) -(is:quote) -(is:retweet) -(is:verified) (lang:en) (#trump OR trump OR #donaldtrump OR \"donald trump\" OR #donaldtrump2020) (#usracism OR #blacklivesmatter OR racism)", "tag": "race" },
+    { "value": "-(has:links) -(has:videos) -(is:quote) -(is:retweet) (lang:en) (is:verified) (#trump OR trump OR #donaldtrump OR \"donald trump\" OR #donaldtrump2020) (#usracism OR #blacklivesmatter OR racism)", "tag": "race-vip" }
+  ]
+}
