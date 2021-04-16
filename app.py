@@ -46,9 +46,6 @@ class RawTweet(db.Model):
     tags = db.Column(db.Integer, nullable=False)
     hash = db.Column(db.String(32), primary_key=True)
 
-    def __repr__(self):
-        return '<RawTweet %r>' % self.text
-
     def to_dict(self):
         return {
             'text': self.text,
@@ -57,12 +54,26 @@ class RawTweet(db.Model):
         }
 
 
-class CleanTweet(db.Model):
+class CleanStemmingTweet(db.Model):
     text = db.Column(db.String(400), nullable=False)
     hash = db.Column(db.String(32), primary_key=True)
 
-    def __repr__(self):
-        return '<RawTweet %r>' % self.text
+    def to_dict(self):
+        return {
+            'text': self.text,
+            'hash': self.hash
+        }
+
+
+class CleanLemmatizerTweet(db.Model):
+    text = db.Column(db.String(400), nullable=False)
+    hash = db.Column(db.String(32), primary_key=True)
+
+    def to_dict(self):
+        return {
+            'text': self.text,
+            'hash': self.hash
+        }
 
 
 def create_tweets_table():
