@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 import os
 import json
 import tools
+import cleaner
 
 database_uri = "mysql+pymysql://armin:armin@localhost/uni"
 UPLOAD_FOLDER = '/tmp'
@@ -43,15 +44,22 @@ def store_file():
 class RawTweet(db.Model):
     text = db.Column(db.String(400), nullable=False)
     tags = db.Column(db.Integer, nullable=False)
-    id = db.Column(db.Integer, primary_key=True)
+    hash = db.Column(db.String(32), primary_key=True)
 
     def __repr__(self):
         return '<RawTweet %r>' % self.text
 
+    def to_dict(self):
+        return {
+            'text': self.text,
+            'tags': self.tags,
+            'hash': self.hash
+        }
+
 
 class CleanTweet(db.Model):
     text = db.Column(db.String(400), nullable=False)
-    id = db.Column(db.Integer, primary_key=True)
+    hash = db.Column(db.String(32), primary_key=True)
 
     def __repr__(self):
         return '<RawTweet %r>' % self.text
@@ -74,16 +82,20 @@ def inject(path):
                     for rule in tweet['matching_rules']:
                         tags.append(rule['tag'].strip('-vip'))
                     tags = set(tags)
-                db.session.merge(RawTweet(text=text, tags=tools.convert_tags_to_int(tags)))
-                progress += 1
+                db.session.merge(RawTweet(text=text, tags=tools.convert_tags_to_int(tags),
+                                          hash=tools.tweet_hash_key(text)))
+            progress += 1
             if progress % 10000 == 0:
                 print(progress)
             line = f.readline()
     db.session.commit()
-    return "Read and Store {} valid tweets from uploaded file!".format(progress)
+    return "Read and Store {} tweets from uploaded file!".format(progress)
 
 
+@app.route('/get')
 def cleaning_tweets():
+    create_tweets_table()
+    clean_tweets = cleaner.clean(list(tweets.to_dict() for tweets in RawTweet.query.all()))
     return ""
 
 

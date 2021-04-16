@@ -17,7 +17,5 @@ def convert_int_to_tags(int_value):
     return tags
 
 
-def tweet_hash_key(text, int_value):
-    text_hash = hashlib.md5(text.encode('utf-8')).hexdigest()
-    tags_hash = hashlib.md5(str(int_value).encode('utf-8')).hexdigest()
-    return hashlib.md5((text_hash + tags_hash).encode('utf-8')).hexdigest()
+def tweet_hash_key(text):
+    return hashlib.md5(text.encode('utf-8')).hexdigest()
