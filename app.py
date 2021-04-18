@@ -106,7 +106,10 @@ def inject(path):
 @app.route('/get')
 def cleaning_tweets():
     create_tweets_table()
-    clean_tweets = cleaner.clean(list(tweets.to_dict() for tweets in RawTweet.query.all()))
+    tweets = RawTweet.query.all()
+    # TODO
+    # clean_tweets = cleaner.clean(list(tweets.to_dict() for tweets in RawTweet.query.all()))
+    tools.emotion_detector([tweets[0].text])
     return ""
 
 
