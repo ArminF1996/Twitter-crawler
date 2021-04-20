@@ -1,6 +1,6 @@
-import hashlib
 from emotion_predictor import EmotionPredictor
 all_tags = {"corona": 0, "economy": 1, "job": 2, "china": 3, "election": 4, "race": 5}
+model = EmotionPredictor(classification='ekman', setting='mc')
 
 
 def convert_tags_to_int(tags):
@@ -18,10 +18,5 @@ def convert_int_to_tags(int_value):
     return tags
 
 
-def tweet_hash_key(text):
-    return hashlib.md5(text.encode('utf-8')).hexdigest()
-
-
 def emotion_detector(tweets):
-    model = EmotionPredictor(classification='ekman', setting='mc')
-    print(model.predict_probabilities(tweets))
+    return model.predict_probabilities(tweets)
