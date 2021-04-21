@@ -4,7 +4,8 @@ import os
 import json
 import tools
 from datetime import datetime
-import cleaner
+from emotion_predictor import EmotionPredictor
+model = EmotionPredictor(classification='ekman', setting='mc')
 
 database_uri = "mysql+pymysql://armin:armin@localhost/uni"
 UPLOAD_FOLDER = '/tmp'
@@ -57,22 +58,26 @@ class RawTweet(db.Model):
 
 class CleanStemmingTweet(db.Model):
     text = db.Column(db.String(400), nullable=False)
+    raw_id = db.Column(db.Integer, nullable=False)
     id = db.Column(db.Integer, primary_key=True)
 
     def to_dict(self):
         return {
             'text': self.text,
+            'raw_id': self.raw_id,
             'id': self.id
         }
 
 
 class CleanLemmatizerTweet(db.Model):
     text = db.Column(db.String(400), nullable=False)
+    raw_id = db.Column(db.Integer, nullable=False)
     id = db.Column(db.Integer, primary_key=True)
 
     def to_dict(self):
         return {
             'text': self.text,
+            'raw_id': self.raw_id,
             'id': self.id
         }
 
@@ -130,47 +135,62 @@ def inject(path):
 def raw_emotion_calculation():
     create_tweets_table()
     raw_tweets = list(tweets.to_dict() for tweets in RawTweet.query.all())
-    start = datetime.timestamp(datetime.now())
-    for raw_tweet in raw_tweets:
-        emotions = tools.emotion_detector([raw_tweet['text']]).values.tolist()[0]
-        db.session.merge(Emotion(
-                type=0,
-                id=raw_tweet['id'],
-                anger=emotions[1],
-                disgust=emotions[2],
-                fear=emotions[3],
-                joy=emotions[4],
-                sadness=emotions[5],
-                surprise=emotions[6]
-            ))
-    print(datetime.timestamp(datetime.now()) - start)
-    db.session.commit()
+    emotion_detector(raw_tweets, 0)
     return "Emotion calculated for raw tweets!"
 
 
 @app.route('/stemming_emotion')
 def stemming_emotion_calculation():
     create_tweets_table()
-    # TODO insert emotion for stemming tweets
-    # stemming_tweets = list(tweets.to_dict() for tweets in CleanStemmingTweet.query.all())
-    return ""
+    stemming_tweets = list(tweets.to_dict() for tweets in CleanStemmingTweet.query.all())
+    emotion_detector(stemming_tweets, 1)
+    return "Emotion calculated for stemming tweets!"
 
 
 @app.route('/lemmatize_emotion')
 def lemmatize_emotion_calculation():
     create_tweets_table()
-    # TODO insert emotion for lemmatize tweets
-    # lemmatize_tweets = list(tweets.to_dict() for tweets in CleanLemmatizerTweet.query.all())
-    return ""
+    lemmatize_tweets = list(tweets.to_dict() for tweets in CleanLemmatizerTweet.query.all())
+    emotion_detector(lemmatize_tweets, 2)
+    return "Emotion calculated for lemmatize tweets!"
 
 
-@app.route('/clean')
-def cleaning_tweets():
+def emotion_detector(tweets, type_number):
+    for tweet in tweets:
+        emotions = model.predict_probabilities([tweet['text']]).values.tolist()[0]
+        db.session.merge(Emotion(
+            type=type_number,
+            id=tweet['id'],
+            anger=emotions[1],
+            disgust=emotions[2],
+            fear=emotions[3],
+            joy=emotions[4],
+            sadness=emotions[5],
+            surprise=emotions[6]
+        ))
+    db.session.commit()
+
+
+@app.route('/stemming_clean')
+def cleaning_tweets_with_stemming():
     create_tweets_table()
-    tweets = RawTweet.query.all()
-    # TODO
-    # clean_tweets = cleaner.clean(list(tweets.to_dict() for tweets in RawTweet.query.all()))
-    return ""
+    tweets = list(tweets.to_dict() for tweets in RawTweet.query.all())
+    for tweet in tweets:
+        cleaned_text = " ".join(tools.clean_text_with_stemming(tweet['text']))
+        db.session.merge(CleanStemmingTweet(text=cleaned_text, raw_id=tweet['id']))
+    db.session.commit()
+    return "Tweets were cleaned with stemming method!"
+
+
+@app.route('/lemmatize_clean')
+def cleaning_tweets_with_lemmatize():
+    create_tweets_table()
+    tweets = list(tweets.to_dict() for tweets in RawTweet.query.all())
+    for tweet in tweets:
+        cleaned_text = " ".join(tools.clean_text_with_lemmatizer(tweet['text']))
+        db.session.merge(CleanLemmatizerTweet(text=cleaned_text, raw_id=tweet['id']))
+    db.session.commit()
+    return "Tweets were cleaned with lemmatize method!"
 
 
 if __name__ == '__main__':

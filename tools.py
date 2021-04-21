@@ -1,6 +1,7 @@
-from emotion_predictor import EmotionPredictor
+import nltk
+import string
+import re
 all_tags = {"corona": 0, "economy": 1, "job": 2, "china": 3, "election": 4, "race": 5}
-model = EmotionPredictor(classification='ekman', setting='mc')
 
 
 def convert_tags_to_int(tags):
@@ -18,5 +19,21 @@ def convert_int_to_tags(int_value):
     return tags
 
 
-def emotion_detector(tweets):
-    return model.predict_probabilities(tweets)
+def clean_text_with_stemming(text):
+    text_lc = "".join([word.lower() for word in text if word not in string.punctuation])
+    text_rc = re.sub('[0-9]+', '', text_lc)
+    tokens = re.split('\W+', text_rc)
+    stopword = nltk.corpus.stopwords.words('english')
+    ps = nltk.PorterStemmer()
+    text = [ps.stem(word) for word in tokens if word not in stopword]
+    return text
+
+
+def clean_text_with_lemmatizer(text):
+    text_lc = "".join([word.lower() for word in text if word not in string.punctuation])
+    text_rc = re.sub('[0-9]+', '', text_lc)
+    tokens = re.split('\W+', text_rc)
+    stopword = nltk.corpus.stopwords.words('english')
+    wn = nltk.WordNetLemmatizer()
+    text = [wn.lemmatize(word) for word in tokens if word not in stopword]
+    return text
