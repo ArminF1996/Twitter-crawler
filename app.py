@@ -5,6 +5,7 @@ import json
 import tools
 from datetime import datetime
 from emotion_predictor import EmotionPredictor
+
 model = EmotionPredictor(classification='ekman', setting='mc')
 
 database_uri = "mysql+pymysql://armin:armin@localhost/uni"
@@ -14,6 +15,9 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+
+key_words = [["corona", "covid19"], ["gdp", "economy", "industry"], ["unemployment", "job", "income"],
+             ["china", "tradewar", "chinese"], ["election"], ["race", "racism", "blacklivesmatter"]]
 
 
 @app.route('/')
@@ -105,6 +109,29 @@ class Emotion(db.Model):
         }
 
 
+class TFIDF(db.Model):
+    type = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
+    corona = db.Column(db.Float, nullable=False)
+    economy = db.Column(db.Float, nullable=False)
+    job = db.Column(db.Float, nullable=False)
+    china = db.Column(db.Float, nullable=False)
+    election = db.Column(db.Float, nullable=False)
+    race = db.Column(db.Float, nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'type': self.type,
+            'corona': self.corona,
+            'economy': self.economy,
+            'job': self.job,
+            'china': self.china,
+            'election': self.election,
+            'race': self.race
+        }
+
+
 def create_tweets_table():
     db.create_all()
 
@@ -117,7 +144,7 @@ def inject(path):
             content = json.loads('[' + line + ']')
             for tweet in content:
                 if 'data' in tweet.keys():
-                    text = tweet['data']['text']
+                    text = tweet['data']['text'].lower()
                     tags = []
                     for rule in tweet['matching_rules']:
                         tags.append(rule['tag'].strip('-vip'))
@@ -191,6 +218,102 @@ def cleaning_tweets_with_lemmatize():
         db.session.merge(CleanLemmatizerTweet(text=cleaned_text, raw_id=tweet['id']))
     db.session.commit()
     return "Tweets were cleaned with lemmatize method!"
+
+
+@app.route('/tfidf/raw')
+def calculate_tfidf_raw():
+    create_tweets_table()
+    tweets = list(tweets.to_dict() for tweets in RawTweet.query.all())
+    total = [0] * 6
+    rows, cols = (len(tweets), 6)
+    arr = [[0] * cols] * rows
+
+    for tweet in tweets:
+        text = tweet['text']
+        cur = tweet['id'] - 1
+        arr[cur] = [0, 0, 0, 0, 0, 0]
+        for i in range(6):
+            for key_word in key_words[i]:
+                arr[cur][i] += text.count(key_word)
+            total[i] += arr[cur][i]
+
+    for i in range(rows):
+        db.session.merge(
+            TFIDF(id=i + 1,
+                  type=0,
+                  corona=float(arr[i][0]) / total[0],
+                  economy=float(arr[i][1]) / total[1],
+                  job=float(arr[i][2]) / total[2],
+                  china=float(arr[i][3]) / total[3],
+                  election=float(arr[i][4]) / total[4],
+                  race=float(arr[i][5]) / total[5],
+                  ))
+    db.session.commit()
+    return "TF-IDF calculated for raw tweets!"
+
+
+@app.route('/tfidf/stemming')
+def calculate_tfidf_stemming():
+    create_tweets_table()
+    tweets = list(tweets.to_dict() for tweets in CleanStemmingTweet.query.all())
+    total = [0] * 6
+    rows, cols = (len(tweets), 6)
+    arr = [[0] * cols] * rows
+
+    for tweet in tweets:
+        text = tweet['text']
+        cur = tweet['id'] - 1
+        arr[cur] = [0, 0, 0, 0, 0, 0]
+        for i in range(6):
+            for key_word in key_words[i]:
+                arr[cur][i] += text.count(key_word)
+            total[i] += arr[cur][i]
+
+    for i in range(rows):
+        db.session.merge(
+            TFIDF(id=i + 1,
+                  type=1,
+                  corona=float(arr[i][0]) / total[0],
+                  economy=float(arr[i][1]) / total[1],
+                  job=float(arr[i][2]) / total[2],
+                  china=float(arr[i][3]) / total[3],
+                  election=float(arr[i][4]) / total[4],
+                  race=float(arr[i][5]) / total[5],
+                  ))
+    db.session.commit()
+    return "TF-IDF calculated for stemming tweets!"
+
+
+@app.route('/tfidf/lemmatize')
+def calculate_tfidf_lemmatize():
+    create_tweets_table()
+    tweets = list(tweets.to_dict() for tweets in CleanLemmatizerTweet.query.all())
+    total = [0] * 6
+    rows, cols = (len(tweets), 6)
+    arr = [[0] * cols] * rows
+
+    for tweet in tweets:
+        text = tweet['text']
+        cur = tweet['id'] - 1
+        arr[cur] = [0, 0, 0, 0, 0, 0]
+        for i in range(6):
+            for key_word in key_words[i]:
+                arr[cur][i] += text.count(key_word)
+            total[i] += arr[cur][i]
+
+    for i in range(rows):
+        db.session.merge(
+            TFIDF(id=i + 1,
+                  type=2,
+                  corona=float(arr[i][0]) / total[0],
+                  economy=float(arr[i][1]) / total[1],
+                  job=float(arr[i][2]) / total[2],
+                  china=float(arr[i][3]) / total[3],
+                  election=float(arr[i][4]) / total[4],
+                  race=float(arr[i][5]) / total[5],
+                  ))
+    db.session.commit()
+    return "TF-IDF calculated for lemmatize tweets!"
 
 
 if __name__ == '__main__':
