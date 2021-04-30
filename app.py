@@ -8,7 +8,7 @@ from emotion_predictor import EmotionPredictor
 
 model = EmotionPredictor(classification='ekman', setting='mc')
 
-database_uri = "mysql+pymysql://armin:armin@localhost/uni"
+database_uri = "mysql+pymysql://armin:armin@localhost/uni?charset=utf8mb4"
 UPLOAD_FOLDER = '/tmp'
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -144,7 +144,7 @@ def inject(path):
             content = json.loads('[' + line + ']')
             for tweet in content:
                 if 'data' in tweet.keys():
-                    text = tweet['data']['text'].lower()
+                    text = " ".join(filter(lambda x: x[0] != '@', tweet['data']['text'].lower().split()))
                     tags = []
                     for rule in tweet['matching_rules']:
                         tags.append(rule['tag'].strip('-vip'))
