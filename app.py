@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 import os
 import json
 import tools
+import demoji
 from datetime import datetime
 from emotion_predictor import EmotionPredictor
 
@@ -18,6 +19,7 @@ db = SQLAlchemy(app)
 
 key_words = [["corona", "covid19"], ["gdp", "economy", "industry"], ["unemployment", "job", "income"],
              ["china", "tradewar", "chinese"], ["election"], ["race", "racism", "blacklivesmatter"]]
+demoji.download_codes()
 
 
 @app.route('/')
@@ -62,26 +64,22 @@ class RawTweet(db.Model):
 
 class CleanStemmingTweet(db.Model):
     text = db.Column(db.String(400), nullable=False)
-    raw_id = db.Column(db.Integer, nullable=False)
     id = db.Column(db.Integer, primary_key=True)
 
     def to_dict(self):
         return {
             'text': self.text,
-            'raw_id': self.raw_id,
             'id': self.id
         }
 
 
 class CleanLemmatizerTweet(db.Model):
     text = db.Column(db.String(400), nullable=False)
-    raw_id = db.Column(db.Integer, nullable=False)
     id = db.Column(db.Integer, primary_key=True)
 
     def to_dict(self):
         return {
             'text': self.text,
-            'raw_id': self.raw_id,
             'id': self.id
         }
 
@@ -144,7 +142,8 @@ def inject(path):
             content = json.loads('[' + line + ']')
             for tweet in content:
                 if 'data' in tweet.keys():
-                    text = " ".join(filter(lambda x: x[0] != '@', tweet['data']['text'].lower().split()))
+                    text = demoji.replace(tweet['data']['text'], " ")
+                    text = " ".join(filter(lambda x: x[0] != '@', text.lower().split()))
                     tags = []
                     for rule in tweet['matching_rules']:
                         tags.append(rule['tag'].strip('-vip'))
@@ -158,7 +157,7 @@ def inject(path):
     return "Read and Store {} tweets from uploaded file!".format(progress)
 
 
-@app.route('/raw_emotion')
+@app.route('/emotion/raw')
 def raw_emotion_calculation():
     create_tweets_table()
     raw_tweets = list(tweets.to_dict() for tweets in RawTweet.query.all())
@@ -166,7 +165,7 @@ def raw_emotion_calculation():
     return "Emotion calculated for raw tweets!"
 
 
-@app.route('/stemming_emotion')
+@app.route('/emotion/stemming')
 def stemming_emotion_calculation():
     create_tweets_table()
     stemming_tweets = list(tweets.to_dict() for tweets in CleanStemmingTweet.query.all())
@@ -174,7 +173,7 @@ def stemming_emotion_calculation():
     return "Emotion calculated for stemming tweets!"
 
 
-@app.route('/lemmatize_emotion')
+@app.route('/emotion/lemmatize')
 def lemmatize_emotion_calculation():
     create_tweets_table()
     lemmatize_tweets = list(tweets.to_dict() for tweets in CleanLemmatizerTweet.query.all())
@@ -198,24 +197,24 @@ def emotion_detector(tweets, type_number):
     db.session.commit()
 
 
-@app.route('/stemming_clean')
+@app.route('/clean/stemming')
 def cleaning_tweets_with_stemming():
     create_tweets_table()
     tweets = list(tweets.to_dict() for tweets in RawTweet.query.all())
     for tweet in tweets:
         cleaned_text = " ".join(tools.clean_text_with_stemming(tweet['text']))
-        db.session.merge(CleanStemmingTweet(text=cleaned_text, raw_id=tweet['id']))
+        db.session.merge(CleanStemmingTweet(text=cleaned_text, id=tweet['id']))
     db.session.commit()
     return "Tweets were cleaned with stemming method!"
 
 
-@app.route('/lemmatize_clean')
+@app.route('/clean/lemmatize')
 def cleaning_tweets_with_lemmatize():
     create_tweets_table()
     tweets = list(tweets.to_dict() for tweets in RawTweet.query.all())
     for tweet in tweets:
         cleaned_text = " ".join(tools.clean_text_with_lemmatizer(tweet['text']))
-        db.session.merge(CleanLemmatizerTweet(text=cleaned_text, raw_id=tweet['id']))
+        db.session.merge(CleanLemmatizerTweet(text=cleaned_text, id=tweet['id']))
     db.session.commit()
     return "Tweets were cleaned with lemmatize method!"
 
