@@ -2,6 +2,7 @@ from flask import Flask, flash, request, redirect, render_template
 from flask_sqlalchemy import SQLAlchemy
 import os
 import json
+import naive_bayes
 import tools
 import demoji
 from datetime import datetime
@@ -116,6 +117,7 @@ class TFIDF(db.Model):
     china = db.Column(db.Float, nullable=False)
     election = db.Column(db.Float, nullable=False)
     race = db.Column(db.Float, nullable=False)
+    candidate = db.Column(db.Integer, nullable=False)
 
     def to_dict(self):
         return {
@@ -126,7 +128,21 @@ class TFIDF(db.Model):
             'job': self.job,
             'china': self.china,
             'election': self.election,
-            'race': self.race
+            'race': self.race,
+            'candidate': self.candidate
+        }
+
+
+class Bayes(db.Model):
+    type = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
+    tag = db.Column(db.Integer, nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'type': self.type,
+            'tag': self.tag
         }
 
 
@@ -157,12 +173,15 @@ def inject(path):
     return "Read and Store {} tweets from uploaded file!".format(progress)
 
 
-@app.route('/emotion/raw')
-def raw_emotion_calculation():
+@app.route('/emotion/raw/<start>/<end>')
+def raw_emotion_calculation(start=None, end=None):
     create_tweets_table()
-    raw_tweets = list(tweets.to_dict() for tweets in RawTweet.query.all())
+    start_time = datetime.timestamp(datetime.now())
+    raw_tweets = list(tweets.to_dict() for tweets in RawTweet.query
+                      .filter(RawTweet.id >= start).filter(RawTweet.id <= end).all())
     emotion_detector(raw_tweets, 0)
-    return "Emotion calculated for raw tweets!"
+    print(datetime.timestamp(datetime.now()) - start_time)
+    return "Emotion calculated for raw tweets from id={} to id={}!".format(start, end)
 
 
 @app.route('/emotion/stemming')
@@ -173,15 +192,17 @@ def stemming_emotion_calculation():
     return "Emotion calculated for stemming tweets!"
 
 
-@app.route('/emotion/lemmatize')
-def lemmatize_emotion_calculation():
+@app.route('/emotion/lemmatize/<start>/<end>')
+def lemmatize_emotion_calculation(start=None, end=None):
     create_tweets_table()
-    lemmatize_tweets = list(tweets.to_dict() for tweets in CleanLemmatizerTweet.query.all())
+    lemmatize_tweets = list(tweets.to_dict() for tweets in CleanLemmatizerTweet.query
+                            .filter(RawTweet.id >= start).filter(RawTweet.id <= end).all())
     emotion_detector(lemmatize_tweets, 2)
-    return "Emotion calculated for lemmatize tweets!"
+    return "Emotion calculated for lemmatize tweets from id={} to id={}!".format(start, end)
 
 
 def emotion_detector(tweets, type_number):
+    cnt = 0
     for tweet in tweets:
         emotions = model.predict_probabilities([tweet['text']]).values.tolist()[0]
         db.session.merge(Emotion(
@@ -194,6 +215,9 @@ def emotion_detector(tweets, type_number):
             sadness=emotions[5],
             surprise=emotions[6]
         ))
+        cnt += 1
+        if cnt % 1000 == 0:
+            print(cnt)
     db.session.commit()
 
 
@@ -208,15 +232,16 @@ def cleaning_tweets_with_stemming():
     return "Tweets were cleaned with stemming method!"
 
 
-@app.route('/clean/lemmatize')
-def cleaning_tweets_with_lemmatize():
+@app.route('/clean/lemmatize/<start>/<end>')
+def cleaning_tweets_with_lemmatize(start=None, end=None):
     create_tweets_table()
-    tweets = list(tweets.to_dict() for tweets in RawTweet.query.all())
+    tweets = list(tweets.to_dict() for tweets in RawTweet.query
+                  .filter(RawTweet.id >= start).filter(RawTweet.id <= end).all())
     for tweet in tweets:
         cleaned_text = " ".join(tools.clean_text_with_lemmatizer(tweet['text']))
         db.session.merge(CleanLemmatizerTweet(text=cleaned_text, id=tweet['id']))
     db.session.commit()
-    return "Tweets were cleaned with lemmatize method!"
+    return "Tweets were cleaned with lemmatize method from id={} to id={}!".format(start, end)
 
 
 @app.route('/tfidf/raw')
@@ -237,15 +262,19 @@ def calculate_tfidf_raw():
             total[i] += arr[cur][i]
 
     for i in range(rows):
+        for j in range(6):
+            arr[i][j] = float(arr[i][j]) / total[j]
+        max_index = arr[i].index(max(arr[i]))
         db.session.merge(
             TFIDF(id=i + 1,
                   type=0,
-                  corona=float(arr[i][0]) / total[0],
-                  economy=float(arr[i][1]) / total[1],
-                  job=float(arr[i][2]) / total[2],
-                  china=float(arr[i][3]) / total[3],
-                  election=float(arr[i][4]) / total[4],
-                  race=float(arr[i][5]) / total[5],
+                  corona=arr[i][0],
+                  economy=arr[i][1],
+                  job=arr[i][2],
+                  china=arr[i][3],
+                  election=arr[i][4],
+                  race=arr[i][5],
+                  candidate=max_index,
                   ))
     db.session.commit()
     return "TF-IDF calculated for raw tweets!"
@@ -269,15 +298,19 @@ def calculate_tfidf_stemming():
             total[i] += arr[cur][i]
 
     for i in range(rows):
+        for j in range(6):
+            arr[i][j] = float(arr[i][j]) / total[j]
+        max_index = arr[i].index(max(arr[i]))
         db.session.merge(
             TFIDF(id=i + 1,
                   type=1,
-                  corona=float(arr[i][0]) / total[0],
-                  economy=float(arr[i][1]) / total[1],
-                  job=float(arr[i][2]) / total[2],
-                  china=float(arr[i][3]) / total[3],
-                  election=float(arr[i][4]) / total[4],
-                  race=float(arr[i][5]) / total[5],
+                  corona=arr[i][0],
+                  economy=arr[i][1],
+                  job=arr[i][2],
+                  china=arr[i][3],
+                  election=arr[i][4],
+                  race=arr[i][5],
+                  candidate=max_index,
                   ))
     db.session.commit()
     return "TF-IDF calculated for stemming tweets!"
@@ -301,18 +334,61 @@ def calculate_tfidf_lemmatize():
             total[i] += arr[cur][i]
 
     for i in range(rows):
+        for j in range(6):
+            arr[i][j] = float(arr[i][j]) / total[j]
+        max_index = arr[i].index(max(arr[i]))
         db.session.merge(
             TFIDF(id=i + 1,
                   type=2,
-                  corona=float(arr[i][0]) / total[0],
-                  economy=float(arr[i][1]) / total[1],
-                  job=float(arr[i][2]) / total[2],
-                  china=float(arr[i][3]) / total[3],
-                  election=float(arr[i][4]) / total[4],
-                  race=float(arr[i][5]) / total[5],
+                  corona=arr[i][0],
+                  economy=arr[i][1],
+                  job=arr[i][2],
+                  china=arr[i][3],
+                  election=arr[i][4],
+                  race=arr[i][5],
+                  candidate=max_index,
                   ))
     db.session.commit()
     return "TF-IDF calculated for lemmatize tweets!"
+
+
+@app.route('/bayes/raw')
+def calculate_bayes_raw():
+    create_tweets_table()
+    query = '''SELECT type, TFIDF.id, text, candidate FROM raw_tweet INNER JOIN TFIDF ON raw_tweet.id=TFIDF.id AND type=0'''
+    entities = naive_bayes.run(query)
+    tmp = 0
+    print(datetime.timestamp(datetime.now()))
+    for entity in entities:
+        db.session.merge(entity)
+        tmp += 1
+        if tmp % 10000 == 0:
+            print(tmp)
+            print(datetime.timestamp(datetime.now()))
+    db.session.commit()
+    return "naive bayes calculated for raw tweets!"
+
+
+@app.route('/bayes/stemming')
+def calculate_bayes_stemming():
+    create_tweets_table()
+    query = '''SELECT type, TFIDF.id, text, candidate FROM raw_tweet INNER JOIN TFIDF ON raw_tweet.id=TFIDF.id AND type=1'''
+    entities = naive_bayes.run(query)
+    for entity in entities:
+        db.session.merge(entity)
+    db.session.commit()
+    return "naive bayes calculated for raw tweets!"
+
+
+@app.route('/bayes/lemmatize')
+def calculate_bayes_lemmatize():
+    create_tweets_table()
+    query = '''SELECT type, TFIDF.id, text, candidate FROM raw_tweet INNER JOIN TFIDF ON raw_tweet.id=TFIDF.id AND type=2'''
+    entities = naive_bayes.run(query)
+    for entity in entities:
+        db.session.merge(entity)
+    db.session.commit()
+    return "naive bayes calculated for raw tweets!"
 
 
 if __name__ == '__main__':

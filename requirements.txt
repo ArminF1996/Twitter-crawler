@@ -14,3 +14,4 @@ tensorflow==2.4.1
 pandas==1.2.4
 scipy==1.6.3
 demoji==0.4.0
+sklearn==0.0

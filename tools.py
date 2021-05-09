@@ -5,6 +5,7 @@ all_tags = {"corona": 0, "economy": 1, "job": 2, "china": 3, "election": 4, "rac
 nltk.download('stopwords')
 nltk.download('wordnet')
 
+
 def convert_tags_to_int(tags):
     int_value = 0
     for tag in tags:
@@ -18,6 +19,12 @@ def convert_int_to_tags(int_value):
         if (2 ** num) & int_value:
             tags.append(list(all_tags.keys())[num])
     return tags
+
+
+def find_first_tag(int_value):
+    for num in range(len(all_tags)):
+        if (2 ** num) & int_value:
+            return num
 
 
 def clean_text_with_stemming(text):
