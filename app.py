@@ -197,7 +197,7 @@ def stemming_emotion_calculation():
 def lemmatize_emotion_calculation(start=None, end=None):
     create_tweets_table()
     lemmatize_tweets = list(tweets.to_dict() for tweets in CleanLemmatizerTweet.query
-                            .filter(RawTweet.id >= start).filter(RawTweet.id <= end).all())
+                            .filter(CleanLemmatizerTweet.id >= start).filter(CleanLemmatizerTweet.id <= end).all())
     emotion_detector(lemmatize_tweets, 2)
     return "Emotion calculated for lemmatize tweets from id={} to id={}!".format(start, end)
 
