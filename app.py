@@ -7,6 +7,7 @@ import tools
 import demoji
 from datetime import datetime
 from emotion_predictor import EmotionPredictor
+import copy
 
 model = EmotionPredictor(classification='ekman', setting='mc')
 
@@ -21,7 +22,7 @@ db = SQLAlchemy(app)
 key_words = [["corona", "covid19"], ["gdp", "economy", "industry"], ["unemployment", "job", "income"],
              ["china", "tradewar", "chinese"], ["election"], ["race", "racism", "blacklivesmatter"]]
 demoji.download_codes()
-
+tags_variety = ['corona', 'economy', 'job', 'china', 'election', 'race']
 
 @app.route('/')
 def hello_world():
@@ -389,6 +390,88 @@ def calculate_bayes_lemmatize():
         db.session.merge(entity)
     db.session.commit()
     return "naive bayes calculated for raw tweets!"
+
+
+tmp = {'joy': 0, 'fear': 0, 'sadness': 0, 'anger': 0, 'surprise': 0, 'disgust': 0}
+
+
+@app.route('/analyse/raw/bayes/<limit>')
+def analyse_raw_bayes(limit):
+    tags = list(bayes.to_dict() for bayes in Bayes.query.filter(Bayes.type == 0).filter(Bayes.id <= limit).all())
+    emotions = list(emotion.to_dict() for emotion in Emotion.query.filter(Emotion.type == 0).filter(Emotion.id <= limit).all())
+    result = {'corona': copy.deepcopy(tmp), 'economy': copy.deepcopy(tmp), 'job': copy.deepcopy(tmp),
+              'china': copy.deepcopy(tmp), 'election': copy.deepcopy(tmp), 'race': copy.deepcopy(tmp)}
+
+    cnt = 0
+    for cnt in range(len(tags)):
+        result[tags_variety[tags[cnt]['tag']]]['joy'] += emotions[cnt]['joy']
+        result[tags_variety[tags[cnt]['tag']]]['fear'] += emotions[cnt]['fear']
+        result[tags_variety[tags[cnt]['tag']]]['sadness'] += emotions[cnt]['sadness']
+        result[tags_variety[tags[cnt]['tag']]]['anger'] += emotions[cnt]['anger']
+        result[tags_variety[tags[cnt]['tag']]]['surprise'] += emotions[cnt]['surprise']
+        result[tags_variety[tags[cnt]['tag']]]['disgust'] += emotions[cnt]['disgust']
+        cnt += 1
+    return json.dumps(result)
+
+
+@app.route('/analyse/raw/tfidf/<limit>')
+def analyse_raw_tfidf(limit):
+    tags = list(tfidf.to_dict() for tfidf in TFIDF.query.filter(TFIDF.type == 0).filter(TFIDF.id <= limit).all())
+    emotions = list(
+        emotion.to_dict() for emotion in Emotion.query.filter(Emotion.type == 0).filter(Emotion.id <= limit).all())
+    result = {'corona': copy.deepcopy(tmp), 'economy': copy.deepcopy(tmp), 'job': copy.deepcopy(tmp),
+              'china': copy.deepcopy(tmp), 'election': copy.deepcopy(tmp), 'race': copy.deepcopy(tmp)}
+    cnt = 0
+    for cnt in range(len(tags)):
+        for tmp_tag in tags_variety:
+            result[tmp_tag]['joy'] += emotions[cnt]['joy'] * tags[cnt][tmp_tag]
+            result[tmp_tag]['fear'] += emotions[cnt]['fear'] * tags[cnt][tmp_tag]
+            result[tmp_tag]['sadness'] += emotions[cnt]['sadness'] * tags[cnt][tmp_tag]
+            result[tmp_tag]['anger'] += emotions[cnt]['anger'] * tags[cnt][tmp_tag]
+            result[tmp_tag]['surprise'] += emotions[cnt]['surprise'] * tags[cnt][tmp_tag]
+            result[tmp_tag]['disgust'] += emotions[cnt]['disgust'] * tags[cnt][tmp_tag]
+        cnt += 1
+    return json.dumps(result)
+
+
+@app.route('/analyse/lemmatize/bayes/<limit>')
+def analyse_lemmatize_bayes(limit):
+    tags = list(bayes.to_dict() for bayes in Bayes.query.filter(Bayes.type == 2).filter(Bayes.id <= limit).all())
+    emotions = list(
+        emotion.to_dict() for emotion in Emotion.query.filter(Emotion.type == 2).filter(Emotion.id <= limit).all())
+    result = {'corona': copy.deepcopy(tmp), 'economy': copy.deepcopy(tmp), 'job': copy.deepcopy(tmp),
+              'china': copy.deepcopy(tmp), 'election': copy.deepcopy(tmp), 'race': copy.deepcopy(tmp)}
+
+    cnt = 0
+    for cnt in range(len(tags)):
+        result[tags_variety[tags[cnt]['tag']]]['joy'] += emotions[cnt]['joy']
+        result[tags_variety[tags[cnt]['tag']]]['fear'] += emotions[cnt]['fear']
+        result[tags_variety[tags[cnt]['tag']]]['sadness'] += emotions[cnt]['sadness']
+        result[tags_variety[tags[cnt]['tag']]]['anger'] += emotions[cnt]['anger']
+        result[tags_variety[tags[cnt]['tag']]]['surprise'] += emotions[cnt]['surprise']
+        result[tags_variety[tags[cnt]['tag']]]['disgust'] += emotions[cnt]['disgust']
+        cnt += 1
+    return json.dumps(result)
+
+
+@app.route('/analyse/lemmatize/tfidf/<limit>')
+def analyse_lemmatize_tfidf(limit):
+    tags = list(tfidf.to_dict() for tfidf in TFIDF.query.filter(TFIDF.type == 0).filter(TFIDF.id <= limit).all())
+    emotions = list(
+        emotion.to_dict() for emotion in Emotion.query.filter(Emotion.type == 0).filter(Emotion.id <= limit).all())
+    result = {'corona': copy.deepcopy(tmp), 'economy': copy.deepcopy(tmp), 'job': copy.deepcopy(tmp),
+              'china': copy.deepcopy(tmp), 'election': copy.deepcopy(tmp), 'race': copy.deepcopy(tmp)}
+    cnt = 0
+    for cnt in range(len(tags)):
+        for tmp_tag in tags_variety:
+            result[tmp_tag]['joy'] += emotions[cnt]['joy'] * tags[cnt][tmp_tag]
+            result[tmp_tag]['fear'] += emotions[cnt]['fear'] * tags[cnt][tmp_tag]
+            result[tmp_tag]['sadness'] += emotions[cnt]['sadness'] * tags[cnt][tmp_tag]
+            result[tmp_tag]['anger'] += emotions[cnt]['anger'] * tags[cnt][tmp_tag]
+            result[tmp_tag]['surprise'] += emotions[cnt]['surprise'] * tags[cnt][tmp_tag]
+            result[tmp_tag]['disgust'] += emotions[cnt]['disgust'] * tags[cnt][tmp_tag]
+        cnt += 1
+    return json.dumps(result)
 
 
 if __name__ == '__main__':
