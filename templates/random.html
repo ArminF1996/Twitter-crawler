@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} Random Tweet {% endblock %}</h1>
+        <br>
+        <div>
+            <h2><label for="raw_text" style="color: forestgreen">Raw tweet:</label></h2>
+            <h3 style="color: #33362f">{{data['raw_text']}}</h3>
+        </div>
+        <br><br>
+        <div>
+            <h2><label for="clean_text" style="color: forestgreen">Clean tweet:</label></h2>
+            <h3 style="color: #33362f">{{data['clean_text']}}</h3>
+        </div>
+        <br><br>
+        <div>
+            <h2><label for="bayes" style="color: forestgreen">Naive Bayes Tag:</label></h2>
+            <h3 style="color: #33362f"><strong>Raw:</strong> {{data['raw_bayes']}}&emsp;&emsp;&emsp;&emsp;<strong>Clean:</strong> {{data['clean_bayes']}}</h3>
+        </div>
+        <br><br>
+        <div>
+            <h2><label for="tf-idf" style="color: forestgreen">TF-IDF Score Table:</label></h2>
+            <table>
+              <tr style="background-color: #dddddd;">
+                <th></th>
+                <th>Corona</th>
+                <th>Economy</th>
+                <th>Job</th>
+                <th>China</th>
+                <th>Race</th>
+                <th>Election</th>
+              </tr>
+              <tr>
+                <th style="background-color: #dddddd;">Raw</th>
+                <th>{{data['raw_tfidf']['corona']}}</th>
+                <th>{{data['raw_tfidf']['economy']}}</th>
+                <th>{{data['raw_tfidf']['job']}}</th>
+                <th>{{data['raw_tfidf']['china']}}</th>
+                <th>{{data['raw_tfidf']['race']}}</th>
+                <th>{{data['raw_tfidf']['election']}}</th>
+              </tr>
+              <tr>
+                <th style="background-color: #dddddd;">Clean</th>
+                <th>{{data['clean_tfidf']['corona']}}</th>
+                <th>{{data['clean_tfidf']['economy']}}</th>
+                <th>{{data['clean_tfidf']['job']}}</th>
+                <th>{{data['clean_tfidf']['china']}}</th>
+                <th>{{data['clean_tfidf']['race']}}</th>
+                <th>{{data['clean_tfidf']['election']}}</th>
+              </tr>
+            </table>
+        </div>
+        <br><br>
+        <div>
+            <h2><label for="tf-idf" style="color: forestgreen">Emotions Score Table:</label></h2>
+            <table>
+              <tr style="background-color: #dddddd;">
+                <th></th>
+                <th>Joy</th>
+                <th>Fear</th>
+                <th>Sadness</th>
+                <th>Anger</th>
+                <th>Surprise</th>
+                <th>Disgust</th>
+              </tr>
+              <tr>
+                <th style="background-color: #dddddd;">Raw</th>
+                <th>{{data['raw_emotions']['joy']}}</th>
+                <th>{{data['raw_emotions']['fear']}}</th>
+                <th>{{data['raw_emotions']['sadness']}}</th>
+                <th>{{data['raw_emotions']['anger']}}</th>
+                <th>{{data['raw_emotions']['surprise']}}</th>
+                <th>{{data['raw_emotions']['disgust']}}</th>
+              </tr>
+              <tr>
+                <th style="background-color: #dddddd;">Clean</th>
+                <th>{{data['clean_emotions']['joy']}}</th>
+                <th>{{data['clean_emotions']['fear']}}</th>
+                <th>{{data['clean_emotions']['sadness']}}</th>
+                <th>{{data['clean_emotions']['anger']}}</th>
+                <th>{{data['clean_emotions']['surprise']}}</th>
+                <th>{{data['clean_emotions']['disgust']}}</th>
+              </tr>
+            </table>
+        </div>
+        <br><br>
+    </div>
+
+{% endblock %}

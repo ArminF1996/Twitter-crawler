@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} Trump Performance Based on Twitter Data!{% endblock %}</h1>
+    <br>
+    <h3>
+        <ul>
+            <li><strong>Crawled about 500,000 Tweets</strong></li>
+            <li><strong>Raw data cleaned with lemmatize cleaning algorithm</strong>
+              <ul>
+                  <li>Remove emojis</li>
+                  <li>Remove punctuation</li>
+                  <li>Remove stop words</li>
+              </ul>
+            </li>
+            <li><strong>Calculated emotions for tweets with raw and clean data</strong></li>
+            <li><strong>Calculated TF-IDF score for tweets based on their topics</strong></li>
+            <li><strong>Classified tweets based on their topics with Naive-Bayes algorithm</strong>
+              <ul>
+                  <li>Trained 20% data based on TF-IDF Scores</li>
+                  <li>With an accuracy of about 90%</li>
+              </ul>
+            </li>
+        </ul>
+    </h3>
+{% endblock %}

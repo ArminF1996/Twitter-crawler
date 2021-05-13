@@ -2,8 +2,9 @@ import nltk
 import string
 import re
 all_tags = {"corona": 0, "economy": 1, "job": 2, "china": 3, "election": 4, "race": 5}
-nltk.download('stopwords')
-nltk.download('wordnet')
+all_tags_reverse = {0: "corona", 1: "economy", 2: "job", 3: "china", 4: "election", 5: "race"}
+# nltk.download('stopwords')
+# nltk.download('wordnet')
 
 
 def convert_tags_to_int(tags):

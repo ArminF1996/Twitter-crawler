@@ -6,6 +6,7 @@ import naive_bayes
 import tools
 import demoji
 from datetime import datetime
+import random
 from emotion_predictor import EmotionPredictor
 import copy
 
@@ -17,38 +18,13 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.url_map.strict_slashes = False
 db = SQLAlchemy(app)
 
 key_words = [["corona", "covid19"], ["gdp", "economy", "industry"], ["unemployment", "job", "income"],
              ["china", "tradewar", "chinese"], ["election"], ["race", "racism", "blacklivesmatter"]]
-demoji.download_codes()
+# demoji.download_codes()
 tags_variety = ['corona', 'economy', 'job', 'china', 'election', 'race']
-
-@app.route('/')
-def hello_world():
-    return 'Hello World!'
-
-
-@app.route('/store-file-to-sql', methods=['GET', 'POST'])
-def store_file():
-    if request.method == 'POST':
-        # check if the post request has the file part
-        if 'file' not in request.files:
-            flash('No file part')
-            return redirect(request.url)
-        file = request.files['file']
-        if file.filename == '':
-            flash('No selected file')
-            return redirect(request.url)
-        if file:
-            create_tweets_table()
-            tmp_path = os.path.join(app.config['UPLOAD_FOLDER'], 'tmp-data-file')
-            if os.path.exists(tmp_path):
-                os.remove(tmp_path)
-            file.save(tmp_path)
-            return inject(tmp_path)
-    else:
-        return render_template('upload_file.html')
 
 
 class RawTweet(db.Model):
@@ -145,6 +121,61 @@ class Bayes(db.Model):
             'type': self.type,
             'tag': self.tag
         }
+
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+
+@app.route('/analytics', methods=('GET', 'POST'))
+def get_result():
+    if request.method == 'POST':
+        text_type = request.form['type'].lower()
+        algorithm = request.form['algorithm'].lower()
+        data_range = int(int(request.form['range']) * RawTweet.query.count() / 100)
+        return redirect("/analytics/{}/{}/{}".format(text_type, algorithm, data_range))
+
+    return render_template('analytics.html')
+
+
+@app.route('/random', methods=('GET', 'POST'))
+def random_tweet():
+    random_id = random.randint(1, RawTweet.query.count())
+    ret = {}
+    ret['raw_text'] = RawTweet.query.filter(RawTweet.id == random_id).first().to_dict()['text']
+    ret['clean_text'] = CleanLemmatizerTweet.query.filter(CleanLemmatizerTweet.id == random_id).first().to_dict()['text']
+    ret['raw_bayes'] = tools.all_tags_reverse[Bayes.query.filter(Bayes.id == random_id)
+                                                 .filter(Bayes.type == 0).first().to_dict()['tag']]
+    ret['clean_bayes'] = tools.all_tags_reverse[Bayes.query.filter(Bayes.id == random_id)
+                                                   .filter(Bayes.type == 2).first().to_dict()['tag']]
+    ret['raw_tfidf'] = TFIDF.query.filter(TFIDF.id == random_id).filter(TFIDF.type == 0).first().to_dict()
+    ret['clean_tfidf'] = TFIDF.query.filter(TFIDF.id == random_id).filter(TFIDF.type == 2).first().to_dict()
+    ret['raw_emotions'] = Emotion.query.filter(Emotion.id == random_id).filter(Emotion.type == 0).first().to_dict()
+    ret['clean_emotions'] = Emotion.query.filter(Emotion.id == random_id).filter(Emotion.type == 2).first().to_dict()
+    return render_template('random.html', data=ret)
+
+
+@app.route('/store-file-to-sql', methods=['GET', 'POST'])
+def store_file():
+    if request.method == 'POST':
+        # check if the post request has the file part
+        if 'file' not in request.files:
+            flash('No file part')
+            return redirect(request.url)
+        file = request.files['file']
+        if file.filename == '':
+            flash('No selected file')
+            return redirect(request.url)
+        if file:
+            create_tweets_table()
+            tmp_path = os.path.join(app.config['UPLOAD_FOLDER'], 'tmp-data-file')
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+            file.save(tmp_path)
+            return inject(tmp_path)
+    else:
+        return render_template('upload_file.html')
 
 
 def create_tweets_table():
@@ -395,14 +426,14 @@ def calculate_bayes_lemmatize():
 tmp = {'joy': 0, 'fear': 0, 'sadness': 0, 'anger': 0, 'surprise': 0, 'disgust': 0}
 
 
-@app.route('/analyse/raw/bayes/<limit>')
-def analyse_raw_bayes(limit):
+@app.route('/analytics/raw/bayes/<limit>')
+def analytics_raw_bayes(limit):
     tags = list(bayes.to_dict() for bayes in Bayes.query.filter(Bayes.type == 0).filter(Bayes.id <= limit).all())
     emotions = list(emotion.to_dict() for emotion in Emotion.query.filter(Emotion.type == 0).filter(Emotion.id <= limit).all())
     result = {'corona': copy.deepcopy(tmp), 'economy': copy.deepcopy(tmp), 'job': copy.deepcopy(tmp),
               'china': copy.deepcopy(tmp), 'election': copy.deepcopy(tmp), 'race': copy.deepcopy(tmp)}
 
-    cnt = 0
+
     for cnt in range(len(tags)):
         result[tags_variety[tags[cnt]['tag']]]['joy'] += emotions[cnt]['joy']
         result[tags_variety[tags[cnt]['tag']]]['fear'] += emotions[cnt]['fear']
@@ -411,17 +442,20 @@ def analyse_raw_bayes(limit):
         result[tags_variety[tags[cnt]['tag']]]['surprise'] += emotions[cnt]['surprise']
         result[tags_variety[tags[cnt]['tag']]]['disgust'] += emotions[cnt]['disgust']
         cnt += 1
-    return json.dumps(result)
+
+    corona, economy, job, china, race, election = create_chart_data(result)
+    return render_template('charts.html', corona=corona, economy=economy, job=job, china=china, race=race,
+                           election=election)
 
 
-@app.route('/analyse/raw/tfidf/<limit>')
-def analyse_raw_tfidf(limit):
+@app.route('/analytics/raw/tf-idf/<limit>')
+def analytics_raw_tfidf(limit):
     tags = list(tfidf.to_dict() for tfidf in TFIDF.query.filter(TFIDF.type == 0).filter(TFIDF.id <= limit).all())
     emotions = list(
         emotion.to_dict() for emotion in Emotion.query.filter(Emotion.type == 0).filter(Emotion.id <= limit).all())
     result = {'corona': copy.deepcopy(tmp), 'economy': copy.deepcopy(tmp), 'job': copy.deepcopy(tmp),
               'china': copy.deepcopy(tmp), 'election': copy.deepcopy(tmp), 'race': copy.deepcopy(tmp)}
-    cnt = 0
+
     for cnt in range(len(tags)):
         for tmp_tag in tags_variety:
             result[tmp_tag]['joy'] += emotions[cnt]['joy'] * tags[cnt][tmp_tag]
@@ -431,18 +465,20 @@ def analyse_raw_tfidf(limit):
             result[tmp_tag]['surprise'] += emotions[cnt]['surprise'] * tags[cnt][tmp_tag]
             result[tmp_tag]['disgust'] += emotions[cnt]['disgust'] * tags[cnt][tmp_tag]
         cnt += 1
-    return json.dumps(result)
+
+    corona, economy, job, china, race, election = create_chart_data(result)
+    return render_template('charts.html', corona=corona, economy=economy, job=job, china=china, race=race,
+                           election=election)
 
 
-@app.route('/analyse/lemmatize/bayes/<limit>')
-def analyse_lemmatize_bayes(limit):
+@app.route('/analytics/clean/bayes/<limit>')
+def analytics_lemmatize_bayes(limit):
     tags = list(bayes.to_dict() for bayes in Bayes.query.filter(Bayes.type == 2).filter(Bayes.id <= limit).all())
     emotions = list(
         emotion.to_dict() for emotion in Emotion.query.filter(Emotion.type == 2).filter(Emotion.id <= limit).all())
     result = {'corona': copy.deepcopy(tmp), 'economy': copy.deepcopy(tmp), 'job': copy.deepcopy(tmp),
               'china': copy.deepcopy(tmp), 'election': copy.deepcopy(tmp), 'race': copy.deepcopy(tmp)}
 
-    cnt = 0
     for cnt in range(len(tags)):
         result[tags_variety[tags[cnt]['tag']]]['joy'] += emotions[cnt]['joy']
         result[tags_variety[tags[cnt]['tag']]]['fear'] += emotions[cnt]['fear']
@@ -451,17 +487,20 @@ def analyse_lemmatize_bayes(limit):
         result[tags_variety[tags[cnt]['tag']]]['surprise'] += emotions[cnt]['surprise']
         result[tags_variety[tags[cnt]['tag']]]['disgust'] += emotions[cnt]['disgust']
         cnt += 1
-    return json.dumps(result)
+
+    corona, economy, job, china, race, election = create_chart_data(result)
+    return render_template('charts.html', corona=corona, economy=economy, job=job, china=china, race=race,
+                           election=election)
 
 
-@app.route('/analyse/lemmatize/tfidf/<limit>')
-def analyse_lemmatize_tfidf(limit):
+@app.route('/analytics/clean/tf-idf/<limit>')
+def analytics_lemmatize_tfidf(limit):
     tags = list(tfidf.to_dict() for tfidf in TFIDF.query.filter(TFIDF.type == 0).filter(TFIDF.id <= limit).all())
     emotions = list(
         emotion.to_dict() for emotion in Emotion.query.filter(Emotion.type == 0).filter(Emotion.id <= limit).all())
     result = {'corona': copy.deepcopy(tmp), 'economy': copy.deepcopy(tmp), 'job': copy.deepcopy(tmp),
               'china': copy.deepcopy(tmp), 'election': copy.deepcopy(tmp), 'race': copy.deepcopy(tmp)}
-    cnt = 0
+
     for cnt in range(len(tags)):
         for tmp_tag in tags_variety:
             result[tmp_tag]['joy'] += emotions[cnt]['joy'] * tags[cnt][tmp_tag]
@@ -471,7 +510,32 @@ def analyse_lemmatize_tfidf(limit):
             result[tmp_tag]['surprise'] += emotions[cnt]['surprise'] * tags[cnt][tmp_tag]
             result[tmp_tag]['disgust'] += emotions[cnt]['disgust'] * tags[cnt][tmp_tag]
         cnt += 1
-    return json.dumps(result)
+
+    corona, economy, job, china, race, election = create_chart_data(result)
+    return render_template('charts.html', corona=corona, economy=economy, job=job, china=china, race=race,
+                           election=election)
+
+
+def create_chart_data(result):
+    corona = {'task': 'corona'}
+    economy = {'task': 'economy'}
+    job = {'task': 'job'}
+    china = {'task': 'china'}
+    race = {'task': 'race'}
+    election = {'task': 'election'}
+    for key, value in result['corona'].items():
+        corona[key] = value
+    for key, value in result['economy'].items():
+        economy[key] = value
+    for key, value in result['job'].items():
+        job[key] = value
+    for key, value in result['china'].items():
+        china[key] = value
+    for key, value in result['race'].items():
+        race[key] = value
+    for key, value in result['election'].items():
+        election[key] = value
+    return corona, economy, job, china, race, election
 
 
 if __name__ == '__main__':
