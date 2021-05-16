@@ -4,6 +4,7 @@ import os
 import json
 import naive_bayes
 import tools
+import math
 import demoji
 from datetime import datetime
 import random
@@ -280,32 +281,49 @@ def cleaning_tweets_with_lemmatize(start=None, end=None):
 def calculate_tfidf_raw():
     create_tweets_table()
     tweets = list(tweets.to_dict() for tweets in RawTweet.query.all())
-    total = [0] * 6
+    idf = [0] * 6
     rows, cols = (len(tweets), 6)
-    arr = [[0] * cols] * rows
+    tfidf = [[0] * cols] * rows
 
     for tweet in tweets:
         text = tweet['text']
         cur = tweet['id'] - 1
-        arr[cur] = [0, 0, 0, 0, 0, 0]
+        tfidf[cur] = [0, 0, 0, 0, 0, 0]
+        total_words = len(text.split())
+        if total_words < 1:
+            continue
         for i in range(6):
+            have_topic = 0
             for key_word in key_words[i]:
-                arr[cur][i] += text.count(key_word)
-            total[i] += arr[cur][i]
+                tmp_count = text.count(key_word)
+                if tmp_count > 0:
+                    have_topic = 1
+                tfidf[cur][i] += tmp_count
+            tfidf[cur][i] = float(tfidf[cur][i]) / total_words
+            idf[i] += have_topic
+
+    for i in range(6):
+        idf[i] = math.log10(float(rows) / idf[i])
 
     for i in range(rows):
+        max_index = tfidf[i].index(max(tfidf[i]))
+        flag = False
+        if tfidf[i].count(tfidf[i][max_index]) > 1:
+            flag = True
         for j in range(6):
-            arr[i][j] = float(arr[i][j]) / total[j]
-        max_index = arr[i].index(max(arr[i]))
+            tfidf[i][j] = tfidf[i][j] / idf[j]
+        if flag:
+            max_index = tfidf[i].index(max(tfidf[i]))
+
         db.session.merge(
             TFIDF(id=i + 1,
                   type=0,
-                  corona=arr[i][0],
-                  economy=arr[i][1],
-                  job=arr[i][2],
-                  china=arr[i][3],
-                  election=arr[i][4],
-                  race=arr[i][5],
+                  corona=tfidf[i][0],
+                  economy=tfidf[i][1],
+                  job=tfidf[i][2],
+                  china=tfidf[i][3],
+                  election=tfidf[i][4],
+                  race=tfidf[i][5],
                   candidate=max_index,
                   ))
     db.session.commit()
@@ -316,32 +334,49 @@ def calculate_tfidf_raw():
 def calculate_tfidf_stemming():
     create_tweets_table()
     tweets = list(tweets.to_dict() for tweets in CleanStemmingTweet.query.all())
-    total = [0] * 6
+    idf = [0] * 6
     rows, cols = (len(tweets), 6)
-    arr = [[0] * cols] * rows
+    tfidf = [[0] * cols] * rows
 
     for tweet in tweets:
         text = tweet['text']
         cur = tweet['id'] - 1
-        arr[cur] = [0, 0, 0, 0, 0, 0]
+        tfidf[cur] = [0, 0, 0, 0, 0, 0]
+        total_words = len(text.split())
+        if total_words < 1:
+            continue
         for i in range(6):
+            have_topic = 0
             for key_word in key_words[i]:
-                arr[cur][i] += text.count(key_word)
-            total[i] += arr[cur][i]
+                tmp_count = text.count(key_word)
+                if tmp_count > 0:
+                    have_topic = 1
+                tfidf[cur][i] += tmp_count
+            tfidf[cur][i] = float(tfidf[cur][i]) / total_words
+            idf[i] += have_topic
+
+    for i in range(6):
+        idf[i] = math.log10(float(rows) / idf[i])
 
     for i in range(rows):
+        max_index = tfidf[i].index(max(tfidf[i]))
+        flag = False
+        if tfidf[i].count(tfidf[i][max_index]) > 1:
+            flag = True
         for j in range(6):
-            arr[i][j] = float(arr[i][j]) / total[j]
-        max_index = arr[i].index(max(arr[i]))
+            tfidf[i][j] = tfidf[i][j] / idf[j]
+        if flag:
+            max_index = tfidf[i].index(max(tfidf[i]))
+
         db.session.merge(
             TFIDF(id=i + 1,
                   type=1,
-                  corona=arr[i][0],
-                  economy=arr[i][1],
-                  job=arr[i][2],
-                  china=arr[i][3],
-                  election=arr[i][4],
-                  race=arr[i][5],
+                  corona=tfidf[i][0],
+                  economy=tfidf[i][1],
+                  job=tfidf[i][2],
+                  china=tfidf[i][3],
+                  election=tfidf[i][4],
+                  race=tfidf[i][5],
                   candidate=max_index,
                   ))
     db.session.commit()
@@ -352,32 +387,49 @@ def calculate_tfidf_stemming():
 def calculate_tfidf_lemmatize():
     create_tweets_table()
     tweets = list(tweets.to_dict() for tweets in CleanLemmatizerTweet.query.all())
-    total = [0] * 6
+    idf = [0] * 6
     rows, cols = (len(tweets), 6)
-    arr = [[0] * cols] * rows
+    tfidf = [[0] * cols] * rows
 
     for tweet in tweets:
         text = tweet['text']
         cur = tweet['id'] - 1
-        arr[cur] = [0, 0, 0, 0, 0, 0]
+        tfidf[cur] = [0, 0, 0, 0, 0, 0]
+        total_words = len(text.split())
+        if total_words < 1:
+            continue
         for i in range(6):
+            have_topic = 0
             for key_word in key_words[i]:
-                arr[cur][i] += text.count(key_word)
-            total[i] += arr[cur][i]
+                tmp_count = text.count(key_word)
+                if tmp_count > 0:
+                    have_topic = 1
+                tfidf[cur][i] += tmp_count
+            tfidf[cur][i] = float(tfidf[cur][i]) / total_words
+            idf[i] += have_topic
+
+    for i in range(6):
+        idf[i] = math.log10(float(rows) / idf[i])
 
     for i in range(rows):
+        max_index = tfidf[i].index(max(tfidf[i]))
+        flag = False
+        if tfidf[i].count(tfidf[i][max_index]) > 1:
+            flag = True
         for j in range(6):
-            arr[i][j] = float(arr[i][j]) / total[j]
-        max_index = arr[i].index(max(arr[i]))
+            tfidf[i][j] = tfidf[i][j] / idf[j]
+        if flag:
+            max_index = tfidf[i].index(max(tfidf[i]))
+
         db.session.merge(
             TFIDF(id=i + 1,
                   type=2,
-                  corona=arr[i][0],
-                  economy=arr[i][1],
-                  job=arr[i][2],
-                  china=arr[i][3],
-                  election=arr[i][4],
-                  race=arr[i][5],
+                  corona=tfidf[i][0],
+                  economy=tfidf[i][1],
+                  job=tfidf[i][2],
+                  china=tfidf[i][3],
+                  election=tfidf[i][4],
+                  race=tfidf[i][5],
                   candidate=max_index,
                   ))
     db.session.commit()
